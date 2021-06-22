@@ -1,0 +1,195 @@
+version: "3.7"
+networks:
+ {{ nginx_network_name }}:
+    driver: overlay
+    external: true
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+ {{ stack_network_name }}:
+    driver: overlay
+    external: true
+{% endif %}    
+
+services:
+  redis:
+    image: redis:6.0-alpine
+    volumes:
+      - "{{ mailu_volume_folder }}/redis:/data"
+    networks:
+      - {{ stack_network_name }}
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  {{ mailu_db_host }}:
+    image: postgres:{{ mailu_postgres_version }}
+    volumes:
+      - "{{ mailu_volume_folder }}/data/postgres_data:/data"
+    environment:
+      POSTGRES_DB: "{{ mailu_db_name }}"
+      POSTGRES_USER: "{{ mailu_db_user }}"
+      POSTGRES_PASSWORD: "{{ mailu_db_pass }}"
+    networks:
+      - {{ stack_network_name }}
+    deploy:
+      restart_policy:
+        condition: on-failure      
+  
+  front:
+    image: mailu/nginx:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    environment:
+      VIRTUAL_HOST: "{{ nginx_subdomain }}{{ nginx_domain }}"
+    volumes:
+      - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/fullchain.pem:/certs/cert.pem"
+      - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/privkey.pem:/certs/key.pem"
+      - "{{ mailu_volume_folder }}/overrides/nginx:/overrides:ro"
+    logging:
+      driver: json-file      
+    ports:
+      - "80"
+      - "443"
+      - target: 25
+        published: 25
+        mode: overlay
+      - target: 465
+        published: 465
+        mode: overlay
+      - target: 587
+        published: 587
+        mode: overlay
+      - target: 110
+        published: 110
+        mode: overlay
+      - target: 995
+        published: 995
+        mode: overlay
+      - target: 143
+        published: 143
+        mode: overlay
+      - target: 993
+        published: 993
+        mode: overlay
+    networks:
+      - {{ stack_network_name }}
+      - {{ nginx_network_name }}
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  admin:
+    image: mailu/admin:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    volumes:
+      - "{{ mailu_volume_folder }}/data:/data"
+      - "{{ mailu_volume_folder }}/dkim:/dkim"
+    networks:
+      - {{ stack_network_name }}
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 1
+    healthcheck:
+      disable: true        
+
+  imap:
+    image: mailu/dovecot:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    volumes:
+      - "{{ mailu_volume_folder }}/mail:/mail"
+      - "{{ mailu_volume_folder }}/overrides/dovecot:/overrides"
+    networks:
+      - {{ stack_network_name }}
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 1
+    healthcheck:
+      disable: true        
+        
+  smtp:
+    image: mailu/postfix:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    environment:
+      - POD_ADDRESS_RANGE={{ stack_subnet }}
+    volumes:
+      - "{{ mailu_volume_folder }}/mailqueue:/queue"
+      - "{{ mailu_volume_folder }}/overrides/postfix:/overrides:ro"
+    networks:
+      - {{ stack_network_name }}
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 1
+    healthcheck:
+      disable: true             
+
+  antispam:
+    image: mailu/rspamd:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    environment:
+      - POD_ADDRESS_RANGE={{ stack_subnet }}    
+    volumes:
+      - "{{ mailu_volume_folder }}/filter:/var/lib/rspamd"
+      - "{{ mailu_volume_folder }}/dkim:/dkim"
+      - "{{ mailu_volume_folder }}/overrides/rspamd:/etc/rspamd/override.d:ro"
+    networks:
+      - {{ stack_network_name }}      
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 1
+    healthcheck:
+      disable: true             
+
+  # Optional services
+  antivirus:
+    image: mailu/clamav:{{ mailu_version }}
+    env_file: mailu.env
+    volumes:
+      - "{{ mailu_volume_folder }}/filter:/data"
+    networks:
+      - {{ stack_network_name }}      
+    deploy:
+      replicas: 1
+    healthcheck:
+      disable: true
+
+  webmail:
+    image: mailu/rainloop:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    volumes:
+      - "{{ mailu_volume_folder }}/webmail:/data"
+    networks:
+      - {{ stack_network_name }}      
+    deploy:
+      restart_policy:
+        condition: on-failure
+    deploy:
+      replicas: 1
+    healthcheck:
+      disable: true
+
+  webdav:
+    image: mailu/radicale:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    volumes:
+      - "{{ mailu_volume_folder }}/dav:/data"
+    networks:
+      - {{ stack_network_name }}            
+    deploy:
+      replicas: 1
+    healthcheck:
+      disable: true
+
+  fetchmail:
+    image: mailu/fetchmail:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    volumes:
+      - "{{ mailu_volume_folder }}/data:/data"
+    networks:
+      - {{ stack_network_name }}          
+    deploy:
+      replicas: 1
+    healthcheck:
+      disable: true

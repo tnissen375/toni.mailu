@@ -1,0 +1,17 @@
+TAIL=20
+d=$$(date +%Y_%m_%d)
+
+NGINX := $$(docker ps -a | awk '{print $$NF}' | grep -w "nginx_nginx-proxy\.*")
+ADMIN := $$(docker ps -a | awk '{print $$NF}' | grep -w "mailu_admin\.*")
+
+rm:
+	docker stack rm {{ deploy_name }}
+
+deploy:
+	docker stack deploy -c docker-compose.yml {{ deploy_name }} && docker exec -it $(NGINX) nginx -s reload
+
+createadmin:
+	docker exec -it $(ADMIN) flask {{ deploy_name }} admin admin {{ nginx_domain }} {{ mailu_admin_pw }}
+
+ps:
+	docker stack ps {{ deploy_name }} --no-trunc
