@@ -132,5 +132,31 @@
     compose:
       - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
 
+- name: Insert MX record
+  when: record_mx_create
+  include_role:
+    name: toni.dns
+    tasks_from: main
+  vars:
+    dns_provider: "{{ dns_prov }}"
+    zone: "{{ nginx_domain }}"
+    record_name: "@"
+    record_type: "MX"
+    record_ttl: 300
+    record_value: "10 {{ nginx_subdomain }}.{{ nginx_domain }}."
+    record_update: "true"
+    record_create: "true"
 
- #flask mailu admin admin mail.yd2m.de hsdfuifz4fhsjhj_a      
+- name: Insert RDNS record
+  when: record_rdns_create
+  include_role:
+    name: toni.dns
+    tasks_from: main
+  vars:
+    dns_provider: "{{ rdns_prov }}"
+    hetzner_rdns_flavor_cloud: true
+    hetzner_ws_user: "{{ rdns_ws_user }}"
+    hetzner_ws_pw: "{{ rdns_ws_pw }}"
+    hetzner_server_ip: "{{ rdns_server_ip }}"
+    hetzner_ptr: "{{ rdns_ptr }}"
+    hetzner_server_name: "{{ rdns_server_name }}"
