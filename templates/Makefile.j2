@@ -1,17 +1,24 @@
-TAIL=20
-d=$$(date +%Y_%m_%d)
-
 NGINX := $$(docker ps -a | awk '{print $$NF}' | grep -w "nginx_nginx-proxy\.*")
 ADMIN := $$(docker ps -a | awk '{print $$NF}' | grep -w "mailu_admin\.*")
+POSTFIX := $$(docker ps -a | awk '{print $$NF}' | grep -w "mailu_smtp\.*")
 
 rm:
 	docker stack rm {{ deploy_name }}
+
+cp:
+	docker cp $(ADMIN):/app/mailu/manage.py {{ user_path }}/mailu
 
 deploy:
 	docker stack deploy -c docker-compose.yml {{ deploy_name }} && docker exec -it $(NGINX) nginx -s reload
 
 createadmin:
-	docker exec -it $(ADMIN) flask {{ deploy_name }} admin admin {{ nginx_domain }} {{ mailu_admin_pw }}
+	docker exec $(ADMIN) flask {{ deploy_name }} admin admin {{ nginx_domain }} {{ mailu_admin_pw }}
+
+genkeys:
+	docker exec $(ADMIN) flask {{ deploy_name }} genkeys {{ nginx_domain }}
+
+installcurl:
+	docker exec -i $(POSTFIX) /bin/sh -c "apk add --no-cache curl"
 
 ps:
 	docker stack ps {{ deploy_name }} --no-trunc

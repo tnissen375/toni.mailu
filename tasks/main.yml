@@ -16,6 +16,42 @@
     src: mailu.env.j2
     dest: "{{ mailu_volume_folder}}/mailu.env"
 
+- name: copy virtual_alias
+  when: virtual_corteza is defined and virtual_corteza|bool == true
+  template:
+    src: virtual_alias.j2
+    dest: "{{ mailu_volume_folder}}/virtual_alias"
+
+# - name: copy virtual_alias
+#   when: virtual_corteza is defined and virtual_corteza|bool == true
+#   template:
+#     src: aliases.j2
+#     dest: "{{ mailu_volume_folder}}/aliases"
+
+- name: copy postfix override
+  when: virtual_corteza is defined and virtual_corteza|bool == true
+  template:
+    src: postfix.cf.j2
+    dest: "{{ mailu_volume_folder}}/overrides/postfix/postfix.cf"
+
+- name: copy transport service override
+  when: virtual_corteza is defined and virtual_corteza|bool == true
+  template:
+    src: postfix.master.j2
+    dest: "{{ mailu_volume_folder}}/overrides/postfix/postfix.master"
+
+- name: copy root user curl forward
+  when: virtual_corteza is defined and virtual_corteza|bool == true
+  template:
+    src: forward.j2
+    dest: "{{ mailu_volume_folder}}/forward"
+
+# no bind mount on first run
+# - name: copy pg_hba.conf
+#   template:
+#     src: pg_hba.conf.j2
+#     dest: "{{ mailu_volume_folder}}/pg_hba.conf"
+
 - name: Deploy Make
   template:
     src: "Makefile.j2"
@@ -96,20 +132,70 @@
     src: nginx.conf.j2
     dest: "{{ nginx_conf_dir }}/conf.d/{{ nginx_subdomain }}{{ nginx_domain }}.conf"
   
-- name: stop nginx stack
+- name: remove {{ deploy_name }} stack
   docker_stack:
     state: absent
-    name: nginx
+    prune: yes
+    name: "{{ deploy_name }}"
     compose:
-      - "{{ user_path }}/openresty/docker-compose.yml"
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
 
-- name: restart nginx stack
+- name: Deploy compose file
+  template:
+    src: docker-compose_admin.yml.j2
+    dest: "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: Deploy {{ deploy_name }}
   docker_stack:
     state: present
     prune: yes
-    name: nginx
+    name: "{{ deploy_name }}"
     compose:
-      - "{{ user_path }}/openresty/docker-compose.yml"
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: Copy files from container
+  command: make cp
+  args:
+    chdir: "{{ user_path }}/{{ deploy_name }}"
+  retries: 5
+  delay: 3
+  register: result
+  until: result.rc == 0
+
+- name: remove {{ deploy_name }} stack
+  docker_stack:
+    state: absent
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: restart {{ deploy_name }} stack
+  docker_stack:
+    state: present
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: Insert DKIM command
+  blockinfile:
+    path: "{{ user_path }}/{{ deploy_name }}/manage.py"
+    insertbefore: '^\s*@mailu.command()'
+    block: |
+        @mailu.command()
+        @click.argument('domain_name')
+        @flask_cli.with_appcontext
+        def genkeys(domain_name):
+            """ Create domain keys
+            """
+            domain = models.Domain.query.get(domain_name)
+            if domain:
+                domain.generate_dkim_key()
+                print (domain.dkim_publickey)
+            else:
+                print ("Domain not found")    
+    marker: "# {mark} ANSIBLE MANAGED"
 
 - name: Deploy compose file
   template:
@@ -132,6 +218,19 @@
     compose:
       - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
 
+- name: Generate DKIM
+  command: make genkeys
+  args:
+    chdir: "{{ user_path }}/{{ deploy_name }}"
+  register: dkim_public_key
+  retries: 10
+  delay: 3
+  until: dkim_public_key.rc == 0  
+
+# - name: debug
+#   debug:
+#     msg: '{{ dkim_public_key }}'
+
 - name: Insert MX record
   when: record_mx_create
   include_role:
@@ -143,7 +242,56 @@
     record_name: "@"
     record_type: "MX"
     record_ttl: 300
-    record_value: "10 {{ nginx_subdomain }}.{{ nginx_domain }}."
+    record_value: "10 {{ nginx_subdomain }}{{ nginx_domain }}."
+    record_update: "true"
+    record_create: "true"
+
+# - name: debug
+#   debug:
+#     msg: 'record: {{ nginx_domain }}. record_value: "v=spf1 mx a:{{ nginx_subdomain }}{{ nginx_domain }} -all"'
+
+- name: Insert SPF record
+  when: record_dkim_dmarc_create
+  include_role:
+    name: toni.dns
+    tasks_from: main
+  vars:
+    dns_provider: "{{ dns_prov }}"
+    zone: "{{ nginx_domain }}"
+    record_name: "{{ nginx_domain }}."
+    record_type: "TXT"
+    record_ttl: 600
+    record_value: v=spf1 mx a:{{ nginx_subdomain }}{{ nginx_domain }} -all
+    record_update: "true"
+    record_create: "true"
+
+- name: Insert DKIM record
+  when: '"Domain not found" not in dkim_public_key.stdout_lines[1] and record_dkim_dmarc_create'
+  include_role:
+    name: toni.dns
+    tasks_from: main
+  vars:
+    dns_provider: "{{ dns_prov }}"
+    zone: "{{ nginx_domain }}"
+    record_name: "dkim._domainkey.{{ nginx_domain }}."
+    record_type: "TXT"
+    record_ttl: 600
+    record_value: "v=DKIM1; k=rsa; p={{ dkim_public_key.stdout_lines[1] }}"
+    record_update: "true"
+    record_create: "true"
+
+- name: Insert DMARC record
+  when: record_dkim_dmarc_create
+  include_role:
+    name: toni.dns
+    tasks_from: main
+  vars:
+    dns_provider: "{{ dns_prov }}"
+    zone: "{{ nginx_domain }}"
+    record_name: "_dmarc.{{ nginx_domain }}."
+    record_type: "TXT"
+    record_ttl: 600
+    record_value: "v=DMARC1; p=reject; rua=mailto:{{ mailu_admin }}@{{ nginx_subdomain }}{{ nginx_domain }}; ruf=mailto:{{ mailu_admin }}@{{ nginx_subdomain }}{{ nginx_domain }}; adkim=s; aspf=s"
     record_update: "true"
     record_create: "true"
 
@@ -153,6 +301,8 @@
     name: toni.dns
     tasks_from: main
   vars:
+    api_token: "{{ server_api_token }}"
+    hetzner_cloud_api_token: "{{ cloud_api_token }}"
     dns_provider: "{{ rdns_prov }}"
     hetzner_rdns_flavor_cloud: true
     hetzner_ws_user: "{{ rdns_ws_user }}"
@@ -160,3 +310,95 @@
     hetzner_server_ip: "{{ rdns_server_ip }}"
     hetzner_ptr: "{{ rdns_ptr }}"
     hetzner_server_name: "{{ rdns_server_name }}"
+
+- name: stop nginx stack
+  docker_stack:
+    state: absent
+    name: nginx
+    compose:
+      - "{{ user_path }}/openresty/docker-compose.yml"
+
+- name: restart nginx stack
+  docker_stack:
+    state: present
+    prune: yes
+    name: nginx
+    compose:
+      - "{{ user_path }}/openresty/docker-compose.yml"
+
+# It happens that nginx / nginx reverse proxy does not work // Test for it
+# todo: investigate 
+- name: "Wait until server is accessible"
+  uri:
+    url: "https://{{ nginx_subdomain }}{{ nginx_domain }}/admin"
+    status_code: 200
+    validate_certs: no
+  register: result
+  until: result.status == 200
+  retries: 5
+  delay: 10
+
+- name: "Wait until server is accessible"
+  uri:
+    url: "https://{{ nginx_subdomain }}{{ nginx_domain }}/admin"
+    status_code: 200
+    validate_certs: no
+  register: result
+  until: result.status == 200
+  retries: 5
+  delay: 10  
+
+- name: restart {{ deploy_name }} stack
+  when: result.status != 200
+  docker_stack:
+    state: absent
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
+
+- name: restart {{ deploy_name }} stack
+  when: result.status != 200
+  docker_stack:
+    state: present
+    prune: yes
+    name: "{{ deploy_name }}"
+    compose:
+      - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"  
+
+- name: "Wait until server is accessible"
+  uri:
+    url: "https://{{ nginx_subdomain }}{{ nginx_domain }}/admin"
+    status_code: 200
+    validate_certs: no
+  register: result
+  until: result.status == 200
+  retries: 5
+  delay: 10
+
+- name: stop nginx stack
+  when: result.status != 200
+  docker_stack:
+    state: absent
+    name: nginx
+    compose:
+      - "{{ user_path }}/openresty/docker-compose.yml"
+
+- name: restart nginx stack
+  when: result.status != 200
+  docker_stack:
+    state: present
+    prune: yes
+    name: nginx
+    compose:
+      - "{{ user_path }}/openresty/docker-compose.yml"  
+
+- name: Install curl in postfix container
+  command: make installcurl
+  args:
+    chdir: "{{ user_path }}/{{ deploy_name }}"
+  register: mk_curl
+
+- name: debug
+  debug:
+    msg: 'Status(200) = {{ result.status }}'

@@ -1,0 +1,26 @@
+version: "3.7"
+networks:
+ {{ nginx_network_name }}:
+    driver: overlay
+    external: true
+{% if create_stack_network is defined and create_stack_network|bool==true %}      
+ {{ stack_network_name }}:
+    driver: overlay
+    external: true
+{% endif %}    
+
+services:
+  admin:
+    image: mailu/admin:{{ mailu_version }}
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
+    volumes:
+      - "{{ mailu_volume_folder }}/data:/data"
+      - "{{ mailu_volume_folder }}/dkim:/dkim"
+    networks:
+      - {{ stack_network_name }}
+    deploy:
+      restart_policy:
+        condition: on-failure
+      replicas: 1
+    healthcheck:
+      disable: true

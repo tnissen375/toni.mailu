@@ -7,12 +7,28 @@ nginx_domain: "{{ domain }}"
 nginx_upstream: "https://front"
 nginx_conf_dir: "/etc/nginx"
 access_group: web
+virtual_corteza: true
+virtual_corteza_ipv6: false
+virtual_corteza_domain: "corteza.toni-media.de"
+virtual_corteza_mail_regex: "/.+@corteza\\.toni-media\\.de$/"
+#"| curl -6 --data-binary @- 'https://{{ virtual_corteza_mail_domain }}/api/system/sink?content-type=email&expires=&method=POST&origin=postfix&__sign=={{ virtual_corteza_sink }}'"
+virtual_corteza_sink: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;mailu
+          34326566303534336630646232383161363332623562383935643666306664326462393435323839
+          3662626365643938666463343864626531313138323838330a353762613937333535353532313839
+          34343932316663303962323230613736326232363563323430643939353662653433313238316335
+          3161626466343662320a616134643036313866663565646636376265623033383333663937626165
+          30633031313663636634333736653761303333646539623337383337313136303634333961393235
+          37383039656336393062646366396432343363316637626135323366353538373066393365353735
+          64343534353830363539343961326332663336666130323665646133653130323261663264303239
+          62303730313631313262
 
 # DNS / RDNS
 dns_prov: "hetzner"
 rdns_prov: "hetzner_rdns"
-record_mx_create: true
-record_rdns_create: true
+record_mx_create: false
+record_rdns_create: false
+record_dkim_dmarc_create: true
 dns_create: false
 dns_update: false
 rdns_cloud: true
@@ -30,8 +46,29 @@ rdns_ws_pw: !vault |
           39623462396166346263346236343761613862393233303064623861323731646430393063393332
           3839323261306665330a326431353833336239326331393565346235376162376363636637643138
           36623965643239623465343162626232636562643161613230363938653138663331
+
+server_api_token: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;mailu
+          65333139363333353162666335356131303765643830313435653661616434613133336635393132
+          6162373536373432623965353961313334303562656430620a353962326230396238333332646363
+          64633436663631616636323230616532353737663865656231373364316339666564346561656662
+          3564393564653461350a386665333538626464363632343462376535373438656363616631633338
+          36336432613735616537643337323537356136623030343566373165393066666366623461383963
+          3466626138363433326139363933333934646634663830333265
+
+cloud_api_token: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;mailu
+          66353261666463303439373634316434643066343639633261333535393266356635656164343761
+          3736393330303037333965376462643761666635323032630a663439643635346130393662393731
+          64656466386362656538646462333063346338323862623839356534653136333862333737653430
+          3266633664346533380a633663393463333136376462353563363430356137366661393831373334
+          34666635303337383039383664306135363866343538316534663839313430366236616433666433
+          34333037653763626566316236396237336539633563663739613066343030336361626137353933
+          34623161306562396433663330353037363662366634373230353739636436373762643132636133
+          32396465363865663839
+
 rdns_server_ip: 162.55.53.218
-rdns_ptr: "{{ nginx_subdomain }}.{{ nginx_domain }}"
+rdns_ptr: "{{ nginx_subdomain }}{{ nginx_domain }}"
 rdns_server_name: target
 
 # stack network
@@ -41,7 +78,13 @@ stack_subnet: 10.10.16.0/24
 ipv6_enabled: false
 
 mailu_admin: "admin"
-mailu_admin_pw: "hsdfuifz4fhsjhj_a"
+mailu_admin_pw: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;mailu
+          36613936373234343365336565626561343536383632643464626234313034646134653430613430
+          6330336136653237346661663664326632373639356463370a363764643831323330643334626433
+          64323535346133663936663463346638383634363531366663336539353037343335383663393238
+          6230353435336630390a316333633839666263623539306663633266613563383838663636643134
+          63353836313563396131366164656238393165343131303065356265663732646530
 mailu_version: 1.8
 mailu_volume_folder: "{{ user_path }}/mailu"
 
@@ -62,6 +105,7 @@ dir_exists:
   - "{{ mailu_volume_folder }}/webmail"
   - "{{ mailu_volume_folder }}/data/postgres_data"
   - "{{ mailu_volume_folder }}/dav"
+  - "{{ mailu_volume_folder }}/postfix"
 
 #mailu_secret_key: lookup('password', '/dev/null chars=ascii_letters,digits length=16')
 mailu_secret_key: "ahgte64hngzthgfd"
@@ -70,20 +114,37 @@ mailu_secret_key: "ahgte64hngzthgfd"
 # Database settings
 ###################################
 mailu_db_flavor: postgresql
-mailu_postgres_version: 12
+mailu_postgres_version: 13-alpine
 mailu_db_name: "mailu"
 mailu_db_user: "admin"
-mailu_db_pass: "hsdfuifz4fhsjhj_a"
+mailu_db_pass: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;mailu
+          30346331336466386531666534356262383338646535656661613066303464386231313064363366
+          6139623839623665646336386534616437376337663038330a373238626632353439613362376433
+          38373336383533643731316335633731336335656636333232666363303738386434353635383830
+          3735313031306634660a326362373239643962386166373366386365363933306463656662313665
+          30346433643431343833646262393265626563356363306562636634363366373730
 mailu_db_host: "db_mailu"
+roundcube_db_user: "admin"
+roundcube_db_pw: !vault |
+          $ANSIBLE_VAULT;1.2;AES256;mailu
+          31323564316661316662316635623335626463653837303965616562313436313535653934323463
+          3161373631356466313332356663633739313338333230640a663866663830666663373131346532
+          30363238666239343264313138393364623662346235663233396264353963363133306630306134
+          3532303635393739650a383631643236623031663332366636653539326665333064656161333766
+          64653264666361313635363061363666336132316264316333666166323961306130
 
+
+#sudo -u postgres dropdb mailman
+#sudo -u postgres createdb -O myuser mailman
 ###################################
 # env settings
 ###################################
 # Subnet of the docker network. This should not conflict with any networks to which your system is connected. (Internal and external!)
-subnet: 
+subnet: "{{ stack_subnet }}"
 
 # Hostnames for this server, separated with comas
-hostnames: "mail.{{ domain }}"
+hostnames: "{{nginx_subdomain}}{{ domain }}"
 
 # Postmaster local part (will append the main mail domain)
 postmaster: "{{ mailu_admin }}"
@@ -168,7 +229,7 @@ admin_path: "/admin"
 site_name: "{{ domain }}"
 
 # Linked Website URL
-website: "https://mail.{{ domain }}"
+website: "https://{{nginx_subdomain}}{{ domain }}"
 
 domain_registration: false
 
@@ -196,7 +257,8 @@ real_ip_header: X-Real-IP
 real_ip_from: ""
 
 # choose wether mailu bounces (no) or rejects (yes) mail when recipient is unknown (value: yes, no)
-reject_unlisted_recipient: no
+reject_unlisted_recipient: "no"
+smtp_reject_unlisted_recipient: "no"
 
 # Log level threshold in start.py (value: CRITICAL, ERROR, WARNING, INFO, DEBUG, NOTSET)
 log_level: WARNING

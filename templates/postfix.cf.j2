@@ -1,0 +1,7 @@
+#virtual_alias_maps = pcre:/etc/postfix/virtual_alias
+virtual_alias_maps = unionmap:{socketmap:unix:/tmp/podop.socket:alias, pcre:/etc/postfix/virtual_alias}
+#transport_maps = unionmap:{socketmap:unix:/tmp/podop.socket:transport, hash:/etc/postfix/transport_map}
+#virtual_mailbox_domains = {{ virtual_corteza_domain }}
+virtual_alias_domains = {{ virtual_corteza_domain }}
+#alias_maps = hash:/etc/aliases
+mydestination = {{nginx_subdomain}}{{ domain }} localhost

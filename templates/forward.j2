@@ -1,0 +1,1 @@
+"| curl {% if virtual_corteza_ipv6 is defined and virtual_corteza_ipv6|bool==true %}-6 {%endif}--data-binary @- 'https://{{ virtual_corteza_domain }}/api/system/sink?content-type=email&expires=&method=POST&origin=postfix&__sign=={{ virtual_corteza_sink }}'"
