@@ -19,6 +19,11 @@ services:
     deploy:
       restart_policy:
         condition: on-failure
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5       
 
   {{ mailu_db_host }}:
     image: postgres:{{ mailu_postgres_version }}
@@ -38,13 +43,10 @@ services:
         condition: on-failure
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U {{ mailu_db_user }}"]
-      #test: ["CMD-SHELL", "psql -h 127.0.0.1 -d postgres -U health -c \'select 1 as ok;\' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5        
   
-   #HEALTHCHECK &{["CMD-SHELL" "psql -h 127.0.0.1 -d postgres -U health -c \"select 1 as ok;\" || exit 1"] "0s" "0s" "0s" '\x00'}
-
   front:
     image: mailu/nginx:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
@@ -87,6 +89,9 @@ services:
       replicas: 1
       restart_policy:
         condition: on-failure
+    healthcheck:
+      disable: true           
+    #healthcheck: { test: ["CMD", "pgrep", "'nginx: master process'"], timeout: 3s, interval: 10s, retries: 3 }
 
   admin:
     image: mailu/admin:{{ mailu_version }}
@@ -102,7 +107,11 @@ services:
         condition: on-failure
       replicas: 1
     healthcheck:
-      disable: true        
+      disable: true      
+    # healthcheck:
+    #   test: curl -f https://{{ nginx_subdomain }}{{ nginx_domain }}/admin
+    #   interval: 30s
+    #   retries: 3      
 
   imap:
     image: mailu/dovecot:{{ mailu_version }}
@@ -116,8 +125,7 @@ services:
       restart_policy:
         condition: on-failure
       replicas: 1
-    healthcheck:
-      disable: true        
+    healthcheck: { test: ["CMD-SHELL", "doveadm service status"], timeout: 5s, interval: 10s, retries: 3 }
 
   smtp:
     image: mailu/postfix:{{ mailu_version }}
@@ -140,8 +148,9 @@ services:
       restart_policy:
         condition: on-failure
       replicas: 1
-    healthcheck:
-      disable: true             
+    healthcheck: { test: ["CMD-SHELL", "nc localhost 25 | grep -qE '^220.*ESMTP Postfix'"], timeout: 3s, interval: 10s, retries: 5 }
+    # healthcheck:
+    #   disable: true     
 
   antispam:
     image: mailu/rspamd:{{ mailu_version }}
@@ -158,8 +167,9 @@ services:
       restart_policy:
         condition: on-failure
       replicas: 1
-    healthcheck:
-      disable: true             
+    # healthcheck:
+    #   disable: true       
+    healthcheck: { test: ["CMD-SHELL", "/usr/bin/rspamadm control stat"], timeout: 3s, interval: 10s, retries: 5 } 
 
   # Optional services
   antivirus:
@@ -171,8 +181,10 @@ services:
       - {{ stack_network_name }}      
     deploy:
       replicas: 1
-    healthcheck:
-      disable: true
+    # healthcheck:
+    #   disable: true       
+    healthcheck: { test: ["CMD", "pgrep", "-x", "clamd"], timeout: 3s, interval: 10s, retries: 5 }
+
 
   webmail:
     image: mailu/rainloop:{{ mailu_version }}
@@ -187,8 +199,13 @@ services:
     deploy:
       replicas: 1
     healthcheck:
-      disable: true
+      disable: true      
+    # healthcheck:
+    #   test: curl -f https://{{ nginx_subdomain }}{{ nginx_domain }}/webmail
+    #   interval: 30s
+    #   retries: 3
 
+#CalDAV- und CardDAV-Server 
   webdav:
     image: mailu/radicale:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
@@ -199,7 +216,9 @@ services:
     deploy:
       replicas: 1
     healthcheck:
-      disable: true
+      test: curl -f http://127.0.0.1:5232
+      interval: 5s
+      retries: 3
 
   fetchmail:
     image: mailu/fetchmail:{{ mailu_version }}
@@ -212,3 +231,37 @@ services:
       replicas: 1
     healthcheck:
       disable: true
+
+#todo investigate probs rspamd: rspamd_monitored_dns_cb: DNS query blocked on multi.uribl.com (127.0.0.1 returned), possibly due to high volume
+#resolve with unbound?
+#https://mailu.io/1.7/faq.html#rspamd-dns-query-blocked-on-multi-uribl-com
+#https://github.com/ofthesun9/unbound-mailu
+#https://gist.github.com/goofball222/62fd016cbecca40f4fded34f013d4f81
+#https://github.com/Mailu/Mailu/tree/master/docs/swarm/master
+#   unbound:
+#     image: ofthesun9/unbound-mailu:master
+#     ports:
+#      - 0.0.0.0:53:53/tcp
+#      - 0.0.0.0:53:53/udp
+#    volumes:
+#      - /etc/localtime:/etc/localtime:ro
+#      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+#     deploy:
+#       mode: global
+# #      mode: replicated
+# #      replicas: 1
+#       placement:
+#         constraints: [node.role == worker]      
+
+# unbound:
+#   image: mvance/unbound
+#   ports:
+#    - 53:53/tcp
+#    - 53:53/udp
+#   volumes:
+#     - /etc/localtime:/etc/localtime:ro
+#     - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+#   networks:
+#     - mailu_net
+#   deploy:
+#     replicas: 1

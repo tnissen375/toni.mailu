@@ -1,4 +1,15 @@
 ---
+- name: read sink
+  slurp:
+    src: "{{ virtual_corteza_sinkfile_path }}/sink"
+  register: sink_slurp
+  when: virtual_corteza_sinkfile_path != ""
+  ignore_errors: true
+
+- set_fact:
+     virtual_corteza_sink: sink_slurp.content
+   when: sink_slurp.failed == false and virtual_corteza_sinkfile_path != ""
+ 
 - name: Register nginx.conf file
   stat:
     path: "{{ nginx_conf_dir }}/nginx.conf"

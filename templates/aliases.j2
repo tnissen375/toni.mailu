@@ -1,1 +1,5 @@
-corteza_sink: "|curl --data-binary @- 'https://api.corteza.toni-media.de/system/sink?content-type=email&expires=&method=POST&origin=postfix&__sign==70785a979514eac49c7801fee8127b1567fbdc37_eyJtdGQiOiJQT1NUIn0%3D'"
+{% if virtual_corteza_ipv6 is defined and virtual_corteza_ipv6|bool==true %}
+"| curl -6 --data-binary @- 'https://{{ corteza_domain }}/api/system/sink?content-type=email&expires=&method=POST&origin=postfix&__sign=={{ virtual_corteza_sink }}'"
+{%else%}
+"| curl --data-binary @- 'https://{{ corteza_domain }}/api/system/sink?content-type=email&expires=&method=POST&origin=postfix&__sign=={{ virtual_corteza_sink }}'"
+{%endif%}
