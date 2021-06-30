@@ -9,7 +9,7 @@
 - set_fact:
      virtual_corteza_sink: sink_slurp.content
    when: sink_slurp.failed == false and virtual_corteza_sinkfile_path != ""
- 
+
 - name: Register nginx.conf file
   stat:
     path: "{{ nginx_conf_dir }}/nginx.conf"
@@ -345,19 +345,10 @@
     status_code: 200
     validate_certs: no
   register: result
+  ignore_errors: yes
   until: result.status == 200
   retries: 5
   delay: 10
-
-- name: "Wait until server is accessible"
-  uri:
-    url: "https://{{ nginx_subdomain }}{{ nginx_domain }}/admin"
-    status_code: 200
-    validate_certs: no
-  register: result
-  until: result.status == 200
-  retries: 5
-  delay: 10  
 
 - name: restart {{ deploy_name }} stack
   when: result.status != 200
@@ -383,7 +374,8 @@
     status_code: 200
     validate_certs: no
   register: result
-  until: result.status == 200
+  ignore_errors: yes
+  until: result.status == 200 
   retries: 5
   delay: 10
 
