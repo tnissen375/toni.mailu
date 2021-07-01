@@ -3,21 +3,22 @@ user: "root"
 user_path: "/root"
 deploy_name: "mailu"
 nginx_subdomain: "mail."
+nginx_stack: "openresty"
 nginx_domain: "{{ domain }}"
 nginx_upstream: "https://front"
 nginx_conf_dir: "/etc/nginx"
 access_group: web
 virtual_corteza: true
-corteza_domain: "corteza.toni-media.de"
+corteza_domain: "corteza.toni-media.com"
 virtual_corteza_ipv6: false
-virtual_alias_domains: "corteza.yd2m.de"
-virtual_corteza_mail_regex: "/.+@corteza\\.yd2m\\.de$/"
+virtual_alias_domains: "corteza.toni-media.com"
+virtual_corteza_mail_regex: "/.+@corteza\\.toni-media\\.com$/"
 # virtual_corteza: true
 # virtual_corteza_ipv6: false
 # virtual_corteza_domain: "corteza.toni-media.de"
 # virtual_alias_domains: "corteza.toni-media.de"
 # virtual_corteza_mail_regex: "/.+@corteza\\.toni-media\\.de$/"
-virtual_corteza_sinkfile_path: ""
+virtual_corteza_sinkfile_path: "{{ user_path }}/corteza"
 #or
 virtual_corteza_sink: !vault |
           $ANSIBLE_VAULT;1.2;AES256;mailu

@@ -1,0 +1,22 @@
+- hosts: swarm-01
+  remote_user: root
+  gather_facts: yes
+  roles:
+    - {
+      role: toni.openresty,
+      #docker_network_host: True,
+      nginx_network_name: "nginx_net",
+      nginx_network_driver: "overlay",
+      # docker_network_encrypted: 'true',
+      nginx_run_as: "stack",
+      force_images: "True"
+      }
+    - { 
+      role: mailu,
+        letsencrypt_email: "{{ lets_encrypt_mail }}",
+        nginx_network_name: "nginx_net",
+        nginx_run_as: "stack",
+        create_stack_network: true,
+        force_images: false,
+        tags: [ mailu ]
+      }

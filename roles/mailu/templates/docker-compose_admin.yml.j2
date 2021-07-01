@@ -14,6 +14,7 @@ services:
     image: mailu/admin:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     volumes:
+      - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/data:/data"
       - "{{ mailu_volume_folder }}/dkim:/dkim"
     networks:

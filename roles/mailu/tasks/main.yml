@@ -7,8 +7,8 @@
   ignore_errors: true
 
 - set_fact:
-     virtual_corteza_sink: sink_slurp.content
-   when: sink_slurp.failed == false and virtual_corteza_sinkfile_path != ""
+     virtual_corteza_sink: "{{ sink_slurp.content }}"
+  when: sink_slurp.failed == false and virtual_corteza_sinkfile_path != ""
 
 - name: Register nginx.conf file
   stat:
@@ -116,7 +116,7 @@
     state: absent
     name: nginx
     compose:
-      - "{{ user_path }}/openresty/docker-compose.yml"
+      - "{{ user_path }}/{{ nginx_stack}}/docker-compose.yml"
 
 - name: restart nginx stack
   docker_stack:
@@ -124,7 +124,7 @@
     prune: yes
     name: nginx
     compose:
-      - "{{ user_path }}/openresty/docker-compose.yml"
+      - "{{ user_path }}/{{ nginx_stack}}/docker-compose.yml"
 
 - name: set cert facts 
   when: not existing_certs|bool
@@ -327,7 +327,7 @@
     state: absent
     name: nginx
     compose:
-      - "{{ user_path }}/openresty/docker-compose.yml"
+      - "{{ user_path }}/{{ nginx_stack}}/docker-compose.yml"
 
 - name: restart nginx stack
   docker_stack:
@@ -335,7 +335,7 @@
     prune: yes
     name: nginx
     compose:
-      - "{{ user_path }}/openresty/docker-compose.yml"
+      - "{{ user_path }}/{{ nginx_stack}}/docker-compose.yml"
 
 # It happens that nginx / nginx reverse proxy does not work // Test for it
 # todo: investigate 
@@ -347,8 +347,25 @@
   register: result
   ignore_errors: yes
   until: result.status == 200
-  retries: 5
+  retries: 8
   delay: 10
+
+- name: Reinit nginx within mailu stack
+  command: make initadmin
+  args:
+    chdir: "{{ user_path }}/{{ deploy_name }}"
+  register: mk_curl
+
+- name: "Wait until server is accessible"
+  uri:
+    url: "https://{{ nginx_subdomain }}{{ nginx_domain }}/admin"
+    status_code: 200
+    validate_certs: no
+  register: result
+  ignore_errors: yes
+  until: result.status == 200
+  retries: 3
+  delay: 10  
 
 - name: restart {{ deploy_name }} stack
   when: result.status != 200
@@ -367,34 +384,6 @@
     name: "{{ deploy_name }}"
     compose:
       - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"  
-
-- name: "Wait until server is accessible"
-  uri:
-    url: "https://{{ nginx_subdomain }}{{ nginx_domain }}/admin"
-    status_code: 200
-    validate_certs: no
-  register: result
-  ignore_errors: yes
-  until: result.status == 200 
-  retries: 5
-  delay: 10
-
-- name: stop nginx stack
-  when: result.status != 200
-  docker_stack:
-    state: absent
-    name: nginx
-    compose:
-      - "{{ user_path }}/openresty/docker-compose.yml"
-
-- name: restart nginx stack
-  when: result.status != 200
-  docker_stack:
-    state: present
-    prune: yes
-    name: nginx
-    compose:
-      - "{{ user_path }}/openresty/docker-compose.yml"  
 
 - name: Install curl in postfix container
   command: make installcurl
