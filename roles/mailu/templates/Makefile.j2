@@ -1,7 +1,7 @@
-NGINX := $$(docker ps -a | awk '{print $$NF}' | grep -w "{{ nginx_stack}}_nginx-proxy\.*")
-ADMIN := $$(docker ps -a | awk '{print $$NF}' | grep -w "{{ deploy_name }}_admin\.*")
-POSTFIX := $$(docker ps -a | awk '{print $$NF}' | grep -w "{{ deploy_name }}_smtp\.*")
-FRONT := $$(docker ps -a | awk '{print $$NF}' | grep -w "mailu_front\.*")
+NGINX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ nginx_stack}}_nginx-proxy\.*")
+ADMIN := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_admin\.*")
+POSTFIX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_smtp\.*")
+FRONT := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "mailu_front\.*")
 
 initadmin:
 	docker exec $(FRONT) /bin/sh -c "./config.py && nginx -s reload"
