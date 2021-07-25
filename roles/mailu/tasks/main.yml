@@ -114,17 +114,17 @@
 - name: stop nginx stack
   docker_stack:
     state: absent
-    name: nginx
+    name: "{{ nginx_stack }}"
     compose:
-      - "{{ user_path }}/{{ nginx_stack}}/docker-compose.yml"
+      - "{{ user_path }}/{{ nginx_stack }}/docker-compose.yml"
 
 - name: restart nginx stack
   docker_stack:
     state: present
     prune: yes
-    name: nginx
+    name: "{{ nginx_stack }}"
     compose:
-      - "{{ user_path }}/{{ nginx_stack}}/docker-compose.yml"
+      - "{{ user_path }}/{{ nginx_stack }}/docker-compose.yml"
 
 - name: set cert facts 
   when: not existing_certs|bool
@@ -325,17 +325,17 @@
 - name: stop nginx stack
   docker_stack:
     state: absent
-    name: nginx
+    name: "{{ nginx_stack }}"
     compose:
-      - "{{ user_path }}/{{ nginx_stack}}/docker-compose.yml"
+      - "{{ user_path }}/{{ nginx_stack }}/docker-compose.yml"
 
 - name: restart nginx stack
   docker_stack:
     state: present
     prune: yes
-    name: nginx
+    name: "{{ nginx_stack }}"
     compose:
-      - "{{ user_path }}/{{ nginx_stack}}/docker-compose.yml"
+      - "{{ user_path }}/{{ nginx_stack }}/docker-compose.yml"
 
 # It happens that nginx / nginx reverse proxy does not work // Test for it
 # todo: investigate 

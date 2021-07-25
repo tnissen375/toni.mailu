@@ -140,7 +140,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/mailqueue:/queue"
       - "{{ mailu_volume_folder }}/overrides/postfix:/overrides:ro"
-{% if virtual_corteza is defined and virtual_corteza|bool==true %}      
+{% if virtual_corteza is defined and virtual_corteza|bool==true %}
       - "{{ mailu_volume_folder }}/virtual_alias:/etc/postfix/virtual_alias"
 #      - "{{ mailu_volume_folder }}/aliases:/etc/aliases"
 #      - "{{ mailu_volume_folder }}/transport_map:/etc/postfix/transport_map"
@@ -193,7 +193,7 @@ services:
 
 
   webmail:
-    image: mailu/rainloop:{{ mailu_version }}
+    image: mailu/{{ mailu_webmail_type }}:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -211,6 +211,30 @@ services:
     #   test: curl -f https://{{ nginx_subdomain }}{{ nginx_domain }}/webmail
     #   interval: 30s
     #   retries: 3
+
+{% if mailu_webmail_type is defined and mailu_webmail_type=="roundcube" %}
+  {{ roundcube_db_host }}:
+    image: postgres:{{ mailu_postgres_version }}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - "{{ mailu_volume_folder }}/roundcube/postgres_data:/var/lib/postgresql/data"
+    environment:
+      POSTGRES_DB: "{{ roundcube_db_name }}"
+      POSTGRES_USER: "{{ roundcube_db_user }}"
+      POSTGRES_PASSWORD: "{{ roundcube_db_pass }}"
+    ports:
+      - '5432'      
+    networks:
+      - {{ stack_network_name }}
+    deploy:
+      restart_policy:
+        condition: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ roundcube_db_user }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5   
+{% endif %}
 
 #CalDAV- und CardDAV-Server 
   webdav:

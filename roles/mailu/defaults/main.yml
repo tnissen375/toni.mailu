@@ -85,6 +85,7 @@ stack_network_name: mailu_net
 stack_subnet: 10.10.16.0/24
 ipv6_enabled: false
 
+mailu_webmail_type: "rainloop"
 mailu_admin: "admin"
 mailu_admin_pw: !vault |
           $ANSIBLE_VAULT;1.2;AES256;mailu
@@ -111,6 +112,7 @@ dir_exists:
   - "{{ mailu_volume_folder }}/filter"
   - "{{ mailu_volume_folder }}/dav"
   - "{{ mailu_volume_folder }}/webmail"
+  - "{{ mailu_volume_folder }}/roundcube/postgres_data"
   - "{{ mailu_volume_folder }}/data/postgres_data"
   - "{{ mailu_volume_folder }}/dav"
   - "{{ mailu_volume_folder }}/postfix"
@@ -133,8 +135,11 @@ mailu_db_pass: !vault |
           3735313031306634660a326362373239643962386166373366386365363933306463656662313665
           30346433643431343833646262393265626563356363306562636634363366373730
 mailu_db_host: "db_mailu"
+roundcube_db_flavor: postgresql
+roundcube_db_host: "db_roundcube"
+roundcube_db_name: "roundcube"
 roundcube_db_user: "admin"
-roundcube_db_pw: !vault |
+roundcube_db_pass: !vault |
           $ANSIBLE_VAULT;1.2;AES256;mailu
           31323564316661316662316635623335626463653837303965616562313436313535653934323463
           3161373631356466313332356663633739313338333230640a663866663830666663373131346532
@@ -174,7 +179,7 @@ disable_statistics: False
 admin_enabled: "true"
 
 # Choose which webmail to run if any (values: roundcube, rainloop, none)
-webmail_type: rainloop
+webmail_type: "{{ mailu_webmail_type }}"
 
 # Dav server implementation (value: radicale, none)
 webdav_enabled: radicale
