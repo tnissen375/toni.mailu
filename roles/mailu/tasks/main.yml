@@ -265,6 +265,7 @@
 #   debug:
 #     msg: 'record: {{ nginx_domain }}. record_value: "v=spf1 mx a:{{ nginx_subdomain }}{{ nginx_domain }} -all"'
 
+#https://www.spf-record.de/generator
 - name: Insert SPF record
   when: record_dkim_dmarc_create
   include_role:

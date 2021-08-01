@@ -52,6 +52,7 @@ services:
       timeout: 5s
       retries: 5        
   
+  # port overlay does not work with ipv6
   front:
     image: mailu/nginx:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
@@ -74,25 +75,25 @@ services:
       - "443"
       - target: 25
         published: 25
-        mode: overlay
+        mode: host
       - target: 465
         published: 465
-        mode: overlay
+        mode: host
       - target: 587
         published: 587
-        mode: overlay
+        mode: host
       - target: 110
         published: 110
-        mode: overlay
+        mode: host
       - target: 995
         published: 995
-        mode: overlay
+        mode: host
       - target: 143
         published: 143
-        mode: overlay
+        mode: host
       - target: 993
         published: 993
-        mode: overlay
+        mode: host
     networks:
       - {{ stack_network_name }}
       - {{ nginx_network_name }}
@@ -159,7 +160,7 @@ services:
     image: mailu/postfix:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     environment:
-      - POD_ADDRESS_RANGE={{ stack_subnet }}{% if ipv6_enabled %},{{subnet6 }}
+      - POD_ADDRESS_RANGE={{ stack_subnet }}
 {% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -188,7 +189,7 @@ services:
     image: mailu/rspamd:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     environment:
-      - POD_ADDRESS_RANGE={{ stack_subnet }}{% if ipv6_enabled %},{{subnet6 }}
+      - POD_ADDRESS_RANGE={{ stack_subnet }}
 {% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
