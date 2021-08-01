@@ -5,3 +5,6 @@ virtual_alias_maps = unionmap:{socketmap:unix:/tmp/podop.socket:alias, pcre:/etc
 virtual_alias_domains = {{ virtual_alias_domains }}
 #alias_maps = hash:/etc/aliases
 mydestination = {{nginx_subdomain}}{{ domain }} localhost
+{% if ipv6_enabled %}
+inet_protocols = all
+{% endif %}

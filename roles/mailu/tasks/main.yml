@@ -39,6 +39,11 @@
 #     src: aliases.j2
 #     dest: "{{ mailu_volume_folder}}/aliases"
 
+- name: copy dovecot override  
+  template:
+    src: dovecot.conf.j2
+    dest: "{{ mailu_volume_folder}}/overrides/dovecot/dovecot.conf"
+
 - name: copy postfix override
   when: virtual_corteza is defined and virtual_corteza|bool == true
   template:
@@ -127,7 +132,6 @@
       - "{{ user_path }}/{{ nginx_stack }}/docker-compose.yml"
 
 - name: set cert facts 
-  when: not existing_certs|bool
   include_role:
     name: toni.certificates
     tasks_from: certbot_facts
@@ -169,7 +173,7 @@
   args:
     chdir: "{{ user_path }}/{{ deploy_name }}"
   retries: 5
-  delay: 3
+  delay: 20
   register: result
   until: result.rc == 0
 
@@ -384,6 +388,11 @@
     name: "{{ deploy_name }}"
     compose:
       - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"  
+
+- name: Sleep for 20 seconds and continue with play
+  wait_for:
+    timeout: 20
+  delegate_to: localhost
 
 - name: Install curl in postfix container
   command: make installcurl

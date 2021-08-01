@@ -7,7 +7,11 @@ networks:
  {{ stack_network_name }}:
     driver: overlay
     external: true
-{% endif %}    
+{% endif %}
+{% if ipv6_enabled %}
+ bridge:
+    external: true
+{% endif %}
 
 services:
   redis:
@@ -43,7 +47,7 @@ services:
       restart_policy:
         condition: on-failure
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U {{ mailu_db_user }}"]
+      test: ["CMD-SHELL", "pg_isready -d {{ mailu_db_name }} -U {{ mailu_db_user }}"]
       interval: 10s
       timeout: 5s
       retries: 5        
@@ -55,8 +59,13 @@ services:
       VIRTUAL_HOST: "{{ nginx_subdomain }}{{ nginx_domain }}"
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/fullchain.pem:/certs/cert.pem"
+{% if existing_certs is defined and existing_certs|bool==true %}
+      - "{{ ssl_certs_path }}/{{ nginx_domain }}.crt:/certs/cert.pem" 
+      - "{{ ssl_private_path }}/{{ nginx_domain }}.key:/certs/key.pem"
+{% else %}
+      - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/fullchain.pem:/certs/cert.pem" 
       - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/privkey.pem:/certs/key.pem"
+{% endif %}   
       - "{{ mailu_volume_folder }}/overrides/nginx:/overrides:ro"
     logging:
       driver: json-file      
@@ -87,6 +96,9 @@ services:
     networks:
       - {{ stack_network_name }}
       - {{ nginx_network_name }}
+{% if ipv6_enabled %}
+      - bridge
+{% endif %}
     deploy:
       replicas: 1
       restart_policy:
@@ -117,25 +129,38 @@ services:
     #   retries: 3      
 
   imap:
-    image: mailu/dovecot:{{ mailu_version }}
+    image: mailu/dovecot:latest
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/mail:/mail"
       - "{{ mailu_volume_folder }}/overrides/dovecot:/overrides"
+{% if existing_certs is defined and existing_certs|bool==true %}
+      - "{{ ssl_certs_path }}/{{ nginx_domain }}.crt:/etc/ssl/dovecot.pem"
+      - "{{ ssl_private_path }}/{{ nginx_domain }}.key:/etc/ssl/dovecot.key"
+{% else %}
+      - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/fullchain.pem:/etc/ssl/dovecot.pem"
+      - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/privkey.pem:/etc/ssl/dovecot.key"
+{% endif %}         
     networks:
       - {{ stack_network_name }}
+{% if ipv6_enabled %}
+      - bridge
+{% endif %}
     deploy:
       restart_policy:
         condition: on-failure
       replicas: 1
+#    healthcheck:
+#      disable: true       
     healthcheck: { test: ["CMD-SHELL", "doveadm service status"], timeout: 5s, interval: 10s, retries: 3 }
 
   smtp:
     image: mailu/postfix:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     environment:
-      - POD_ADDRESS_RANGE={{ stack_subnet }}
+      - POD_ADDRESS_RANGE={{ stack_subnet }}{% if ipv6_enabled %},{{subnet6 }}
+{% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/mailqueue:/queue"
@@ -148,32 +173,36 @@ services:
 {% endif %}
     networks:
       - {{ stack_network_name }}
+{% if ipv6_enabled %}
+      - bridge
+{% endif %}      
     deploy:
       restart_policy:
         condition: on-failure
       replicas: 1
-    healthcheck: { test: ["CMD-SHELL", "nc localhost 25 | grep -qE '^220.*ESMTP Postfix'"], timeout: 3s, interval: 10s, retries: 5 }
-    # healthcheck:
-    #   disable: true     
+##    healthcheck: { test: ["CMD-SHELL", "nc localhost 25 | grep -qE '^220.*ESMTP Postfix'"], timeout: 3s, interval: 10s, retries: 5 }
+    healthcheck:
+      disable: true 
 
   antispam:
     image: mailu/rspamd:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     environment:
-      - POD_ADDRESS_RANGE={{ stack_subnet }}    
+      - POD_ADDRESS_RANGE={{ stack_subnet }}{% if ipv6_enabled %},{{subnet6 }}
+{% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/filter:/var/lib/rspamd"
       - "{{ mailu_volume_folder }}/dkim:/dkim"
       - "{{ mailu_volume_folder }}/overrides/rspamd:/etc/rspamd/override.d:ro"
     networks:
-      - {{ stack_network_name }}      
+      - {{ stack_network_name }}
     deploy:
       restart_policy:
         condition: on-failure
       replicas: 1
-    # healthcheck:
-    #   disable: true       
+#    healthcheck:
+#      disable: true       
     healthcheck: { test: ["CMD-SHELL", "/usr/bin/rspamadm control stat"], timeout: 3s, interval: 10s, retries: 5 } 
 
   # Optional services
@@ -190,7 +219,6 @@ services:
     # healthcheck:
     #   disable: true       
     healthcheck: { test: ["CMD", "pgrep", "-x", "clamd"], timeout: 3s, interval: 10s, retries: 5 }
-
 
   webmail:
     image: mailu/{{ mailu_webmail_type }}:{{ mailu_version }}
@@ -244,7 +272,10 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/dav:/data"
     networks:
-      - {{ stack_network_name }}            
+      - {{ stack_network_name }}
+{% if ipv6_enabled %}
+      - bridge
+{% endif %}      
     deploy:
       replicas: 1
     healthcheck:
@@ -259,7 +290,10 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/data:/data"
     networks:
-      - {{ stack_network_name }}          
+      - {{ stack_network_name }}
+{% if ipv6_enabled %}
+      - bridge
+{% endif %}      
     deploy:
       replicas: 1
     healthcheck:
