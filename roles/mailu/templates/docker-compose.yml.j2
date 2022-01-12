@@ -186,6 +186,7 @@ services:
 
   antispam:
     image: mailu/rspamd:{{ mailu_version }}
+    hostname: antispam
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     environment:
       - POD_ADDRESS_RANGE={{ stack_subnet }}
@@ -225,6 +226,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/webmail:/data"
+      - "{{ mailu_volume_folder }}//roundcube:/overrides:ro"
     networks:
       - {{ stack_network_name }}      
     deploy:

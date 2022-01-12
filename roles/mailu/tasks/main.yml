@@ -193,7 +193,7 @@
     block: |
         @mailu.command()
         @click.argument('domain_name')
-        @flask_cli.with_appcontext
+        @with_appcontext
         def genkeys(domain_name):
             """ Create domain keys
             """
