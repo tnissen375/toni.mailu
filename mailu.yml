@@ -1,25 +1,22 @@
-- hosts: swarm-01
+- hosts: targets
   remote_user: root
   gather_facts: yes
   roles:
-    # - {
-    #   role: toni.openresty,
-    #   #docker_network_host: True,
-    #   nginx_network_name: "nginx_net",
-    #   nginx_network_driver: "overlay",
-    #   # docker_network_encrypted: 'true',
-    #   nginx_run_as: "stack",
-    #   force_images: "True"
-    #   }
     - { 
       role: mailu,
-        letsencrypt_email: "{{ lets_encrypt_mail }}",
-        nginx_network_name: "nginx_net",
-        nginx_domain: "hyconcept.de",
-        auth_provider_domain: 'key.hyconcept.de',
-        nginx_run_as: "stack",
-        auth_bypass: "false",
+        ipv6_enabled: 'false',
         create_stack_network: true,
-        force_images: false,
+        stack_network_name: "mailu_net",
+        stack_subnet: "10.10.16.0/24",
+        record_mx_create: false,
+        record_rdns_create: false,
+        record_dkim_dmarc_create: false,
+        dns_create: false,
+        dns_update: false,
+        rdns_cloud: false,
+        auth_provider_domain: 'key.{{ domain }}.com',
+        keycloak_redirect: "https://{{ domain }}/",
+        auth_bypass: "false",
+        include_auth: false,
         tags: [ mailu ]
       }

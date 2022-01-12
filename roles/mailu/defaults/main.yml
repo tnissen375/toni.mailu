@@ -6,36 +6,31 @@ deploy_name: "mailu"
 nginx_subdomain: "mail."
 nginx_stack: "openresty"
 nginx_domain: "{{ domain }}"
+nginx_network_name: "nginx_net"
 nginx_upstream: "https://front"
 nginx_conf_dir: "/etc/nginx"
 ssl_certs_path: /etc/nginx/ssl/certs
 ssl_private_path: /etc/nginx/ssl/private
 access_group: corteza
+configure_firewall: true
 virtual_corteza: true
-#corteza_domain: "corteza.toni-media.com"
-corteza_domain: "corteza.hyconcept.de"
+corteza_domain: "corteza.{{ domain }}.de"
 virtual_corteza_ipv6: "{{ ipv6_enabled }}"
-#virtual_alias_domains: "corteza.toni-media.com"
-virtual_alias_domains: "corteza.hyconcept.de"
-#virtual_corteza_mail_regex: "/.+@corteza\\.toni-media\\.com$/"
-virtual_corteza_mail_regex: "/.+@corteza\\.hyconcept\\.de$/"
-# virtual_corteza: true
-# virtual_corteza_ipv6: false
-# virtual_corteza_domain: "corteza.toni-media.de"
-# virtual_alias_domains: "corteza.toni-media.de"
-# virtual_corteza_mail_regex: "/.+@corteza\\.toni-media\\.de$/"
+virtual_alias_domains: "corteza.{{ domain }}"
+virtual_corteza_mail_regex: "/.+@corteza\\.{{ domain.split('.')[0] }}\\.{{ domain.split('.')[1] }}$/" 
+# virtual_corteza_mail_regex: "/.+@corteza\\.<domain>\\.de$/"
 virtual_corteza_sinkfile_path: "{{ user_path }}/corteza"
 #or
-virtual_corteza_sink: !vault |
-          $ANSIBLE_VAULT;1.2;AES256;mailu
-          34326566303534336630646232383161363332623562383935643666306664326462393435323839
-          3662626365643938666463343864626531313138323838330a353762613937333535353532313839
-          34343932316663303962323230613736326232363563323430643939353662653433313238316335
-          3161626466343662320a616134643036313866663565646636376265623033383333663937626165
-          30633031313663636634333736653761303333646539623337383337313136303634333961393235
-          37383039656336393062646366396432343363316637626135323366353538373066393365353735
-          64343534353830363539343961326332663336666130323665646133653130323261663264303239
-          62303730313631313262
+# virtual_corteza_sink: !vault |
+#           $ANSIBLE_VAULT;1.2;AES256;mailu
+#           34326566303534336630646232383161363332623562383935643666306664326462393435323839
+#           3662626365643938666463343864626531313138323838330a353762613937333535353532313839
+#           34343932316663303962323230613736326232363563323430643939353662653433313238316335
+#           3161626466343662320a616134643036313866663565646636376265623033383333663937626165
+#           30633031313663636634333736653761303333646539623337383337313136303634333961393235
+#           37383039656336393062646366396432343363316637626135323366353538373066393365353735
+#           64343534353830363539343961326332663336666130323665646133653130323261663264303239
+#           62303730313631313262
 
 # DNS / RDNS
 dns_prov: "hetzner"
@@ -89,7 +84,6 @@ rdns_server_name: target
 create_stack_network: true
 stack_network_name: mailu_net
 stack_subnet: 10.10.16.0/24
-
 
 mailu_webmail_type: "rainloop"
 mailu_admin: "admin"

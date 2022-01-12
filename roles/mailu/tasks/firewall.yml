@@ -1,0 +1,7 @@
+---
+# Sending mail over Startssl
+- name: Allow access to tcp port 587
+  ufw:
+    rule: allow
+    port: 587
+    proto: tcp
