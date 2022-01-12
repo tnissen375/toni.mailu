@@ -161,7 +161,6 @@ services:
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     environment:
       - POD_ADDRESS_RANGE={{ stack_subnet }}
-{% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/mailqueue:/queue"
@@ -190,7 +189,6 @@ services:
     env_file: "{{ mailu_volume_folder}}/mailu.env"
     environment:
       - POD_ADDRESS_RANGE={{ stack_subnet }}
-{% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/filter:/var/lib/rspamd"
@@ -259,7 +257,7 @@ services:
       restart_policy:
         condition: on-failure
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U {{ roundcube_db_user }}"]
+      test: ["CMD-SHELL", "pg_isready -U {{ roundcube_db_user }} -d {{ roundcube_db_name }}"]
       interval: 10s
       timeout: 5s
       retries: 5   
