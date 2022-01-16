@@ -1,6 +1,7 @@
 ---
-ipv6_enabled: true
+ipv6_enabled: false
 user: "root"
+update_stack: false
 user_path: "/root"
 deploy_name: "mailu"
 nginx_subdomain: "mail."
@@ -95,9 +96,10 @@ mailu_admin_pw: !vault |
           6230353435336630390a316333633839666263623539306663633266613563383838663636643134
           63353836313563396131366164656238393165343131303065356265663732646530
 mailu_version: 1.9
-mailu_volume_folder: "{{ user_path }}/mailu"
+mailu_volume_folder: "{{ user_path }}/{{ deploy_name }}/vol"
 
 dir_exists:
+  - "{{ user_path }}/{{ deploy_name }}/backup"
   - "{{ mailu_volume_folder }}/"
   - "{{ mailu_volume_folder }}/redis"
   - "{{ mailu_volume_folder }}/certs"
@@ -159,7 +161,7 @@ subnet: "{{ stack_subnet }}"
 subnet6: "fd00::1"
 
 # Hostnames for this server, separated with comas
-hostnames: "{{nginx_subdomain}}{{ domain }}"
+hostnames: "{{nginx_subdomain}}{{ nginx_domain }}"
 
 # Postmaster local part (will append the main mail domain)
 postmaster: "{{ mailu_admin }}"
@@ -250,7 +252,7 @@ admin_path: "/admin"
 site_name: "{{ domain }}"
 
 # Linked Website URL
-website: "https://{{nginx_subdomain}}{{ domain }}"
+website: "https://{{nginx_subdomain}}{{ nginx_domain }}"
 
 domain_registration: false
 

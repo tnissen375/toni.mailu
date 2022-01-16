@@ -1,7 +1,17 @@
+TAIL=20
+d=$$(date +%Y%m%d_%H:%M:%S)
+
 NGINX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ nginx_stack}}_nginx-proxy\.*")
 ADMIN := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_admin\.*")
 POSTFIX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_smtp\.*")
-FRONT := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "mailu_front\.*")
+FRONT := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_front\.*")
+DB := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}db_mailu\.*")
+DBROUNDCUBE := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}db_roundcube\.*")
+target := /
+
+#completebackup: bckup stopapp bckupdbmailu bckupdbroundcube purge deploy
+completebackup: bckup bckupdbmailu bckupdbroundcube purge deploy
+hotbackup: bckup bckupdbmailu bckupdbroundcube rm purge deploy
 
 initadmin:
 	docker exec $(FRONT) /bin/sh -c "./config.py && nginx -s reload"
@@ -9,11 +19,14 @@ initadmin:
 rm:
 	docker stack rm {{ deploy_name }}
 
+#stopapp:
+#	docker stack rm {{ deploy_name }}
+
 cp:
 	docker cp $(ADMIN):/app/mailu/manage.py {{ user_path }}/mailu
 
 deploy:
-	docker stack deploy -c docker-compose.yml {{ deploy_name }} && docker exec -it $(NGINX) nginx -s reload && sleep 20s && make initadmin
+	docker stack deploy -c docker-compose.yml {{ deploy_name }} && docker exec -it $(NGINX) sh -c 'nginx -s reload' && sleep 60s && make initadmin
 
 createadmin:
 	docker exec $(ADMIN) flask {{ deploy_name }} admin admin {{ nginx_domain }} {{ mailu_admin_pw }}
@@ -26,3 +39,25 @@ installcurl:
 
 ps:
 	docker stack ps {{ deploy_name }} --no-trunc
+
+bckup:
+	sh -c 'exec tar -cv {{ mailu_volume_folder }}' | gzip > {{ user_path }}/{{ deploy_name }}/backup/data_"$d".tar.gz
+
+bckupdbmailu:
+	docker exec $(DB) sh -c 'exec pg_dump -Fc --dbname=postgresql://"$$POSTGRES_USER":"$$POSTGRES_PASSWORD"@127.0.0.1:5432/{{ mailu_db_name }}' | gzip > {{ user_path }}/{{ deploy_name }}/backup/{{ mailu_db_name }}_"$d".sql.gz
+
+bckupdbroundcube:
+	docker exec $(DBROUNDCUBE) sh -c 'exec pg_dump -Fc --dbname=postgresql://"$$POSTGRES_USER":"$$POSTGRES_PASSWORD"@127.0.0.1:5432/{{ roundcube_db_name }}' | gzip > {{ user_path }}/{{ deploy_name }}/backup/{{ roundcube_db_name }}_"$d".sql.gz
+
+restore:
+	tar -xzf $(file) -C $(target)
+
+restoremailu:
+	gunzip -c $(file) | docker exec -i $(DB) sh -c 'exec pg_restore --clean --dbname=postgresql://"$$POSTGRES_USER":"$$POSTGRES_PASSWORD"@127.0.0.1:5432/{{ mailu_db_name }}'
+
+restoreroundcube:
+	gunzip -c $(file) | docker exec -i $(DBROUNDCUBE) sh -c 'exec pg_restore --clean --dbname=postgresql://"$$POSTGRES_USER":"$$POSTGRES_PASSWORD"@127.0.0.1:5432/{{ roundcube_db_name }}'
+
+
+purge:
+	find {{ user_path }}/{{ deploy_name }}/backup/*.gz  -mtime +10 -delete &> /dev/null

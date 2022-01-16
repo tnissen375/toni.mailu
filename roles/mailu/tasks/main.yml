@@ -205,6 +205,8 @@
                 print ("Domain not found")    
     marker: "# {mark} ANSIBLE MANAGED"
 
+- debug: var=ipv6_enabled
+
 - name: Deploy compose file
   template:
     src: docker-compose.yml.j2
@@ -227,6 +229,7 @@
       - "{{ user_path }}/{{ deploy_name }}/docker-compose.yml"
 
 - name: Generate DKIM
+  when: update_stack is defined and update_stack == false
   command: make genkeys
   args:
     chdir: "{{ user_path }}/{{ deploy_name }}"
@@ -275,7 +278,7 @@
     record_create: "true"
 
 - name: Insert DKIM record
-  when: '"Domain not found" not in dkim_public_key.stdout_lines[1] and record_dkim_dmarc_create'
+  when: 'update_stack is defined and update_stack == false and "Domain not found" not in dkim_public_key.stdout_lines[1] and record_dkim_dmarc_create'
   include_role:
     name: toni.dns
     tasks_from: main
@@ -388,11 +391,11 @@
     timeout: 20
   delegate_to: localhost
 
-- name: Install curl in postfix container
-  command: make installcurl
-  args:
-    chdir: "{{ user_path }}/{{ deploy_name }}"
-  register: mk_curl
+# - name: Install curl in postfix container
+#   command: make installcurl
+#   args:
+#     chdir: "{{ user_path }}/{{ deploy_name }}"
+#   register: mk_curl
 
 - name: debug
   debug:

@@ -8,7 +8,7 @@ networks:
     driver: overlay
     external: true
 {% endif %}
-{% if ipv6_enabled %}
+{% if ipv6_enabled is defined and ipv6_enabled|bool==true %}
  bridge:
     external: true
 {% endif %}
@@ -97,16 +97,14 @@ services:
     networks:
       - {{ stack_network_name }}
       - {{ nginx_network_name }}
-{% if ipv6_enabled %}
+{% if ipv6_enabled is defined and ipv6_enabled|bool==true %}
       - bridge
 {% endif %}
     deploy:
       replicas: 1
       restart_policy:
         condition: on-failure
-    healthcheck:
-      disable: true           
-    #healthcheck: { test: ["CMD", "pgrep", "'nginx: master process'"], timeout: 3s, interval: 10s, retries: 3 }
+    healthcheck: { test: ["CMD", "nginx", "-t"], timeout: 5s, interval: 10s }
 
   admin:
     image: mailu/admin:{{ mailu_version }}
@@ -122,12 +120,7 @@ services:
       restart_policy:
         condition: on-failure
       replicas: 1
-    healthcheck:
-      disable: true      
-    # healthcheck:
-    #   test: curl -f https://{{ nginx_subdomain }}{{ nginx_domain }}/admin
-    #   interval: 30s
-    #   retries: 3      
+
 
   imap:
     image: mailu/dovecot:latest
@@ -145,16 +138,16 @@ services:
 {% endif %}         
     networks:
       - {{ stack_network_name }}
-{% if ipv6_enabled %}
+{% if ipv6_enabled is defined and ipv6_enabled|bool==true %}
       - bridge
 {% endif %}
     deploy:
       restart_policy:
         condition: on-failure
       replicas: 1
-#    healthcheck:
-#      disable: true       
-    healthcheck: { test: ["CMD-SHELL", "doveadm service status"], timeout: 5s, interval: 10s, retries: 3 }
+    healthcheck:
+      disable: true       
+#    healthcheck: { test: ["CMD-SHELL", "doveadm service status"], timeout: 5s, interval: 10s, retries: 3 }
 
   smtp:
     image: mailu/postfix:{{ mailu_version }}
@@ -173,16 +166,16 @@ services:
 {% endif %}
     networks:
       - {{ stack_network_name }}
-{% if ipv6_enabled %}
+{% if ipv6_enabled is defined and ipv6_enabled|bool==true %}
       - bridge
 {% endif %}      
     deploy:
       restart_policy:
         condition: on-failure
       replicas: 1
-##    healthcheck: { test: ["CMD-SHELL", "nc localhost 25 | grep -qE '^220.*ESMTP Postfix'"], timeout: 3s, interval: 10s, retries: 5 }
     healthcheck:
-      disable: true 
+      disable: true        
+    #healthcheck: { test: ["CMD-SHELL", "echo QUIT|nc localhost 25 | grep '220 .* ESMTP Postfix'"], timeout: 3s, interval: 10s, retries: 5 }
 
   antispam:
     image: mailu/rspamd:{{ mailu_version }}
@@ -201,14 +194,13 @@ services:
       restart_policy:
         condition: on-failure
       replicas: 1
-#    healthcheck:
-#      disable: true       
-    healthcheck: { test: ["CMD-SHELL", "/usr/bin/rspamadm control stat"], timeout: 3s, interval: 10s, retries: 5 } 
+#    healthcheck: { test: ["CMD-SHELL", "/usr/bin/rspamadm control stat"], timeout: 3s, interval: 10s, retries: 5 } 
+    healthcheck: { test: ["CMD-SHELL", "curl -f -L http://localhost:11334/ || exit 1"], timeout: 30s, interval: 10s, retries: 5 }
 
   # Optional services
   antivirus:
     image: mailu/clamav:{{ mailu_version }}
-    env_file: mailu.env
+    env_file: "{{ mailu_volume_folder}}/mailu.env"
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/filter:/data"
@@ -216,8 +208,6 @@ services:
       - {{ stack_network_name }}      
     deploy:
       replicas: 1
-    # healthcheck:
-    #   disable: true       
     healthcheck: { test: ["CMD", "pgrep", "-x", "clamd"], timeout: 3s, interval: 10s, retries: 5 }
 
   webmail:
@@ -226,7 +216,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/webmail:/data"
-      - "{{ mailu_volume_folder }}//roundcube:/overrides:ro"
+      - "{{ mailu_volume_folder }}/roundcube:/overrides:ro"
     networks:
       - {{ stack_network_name }}      
     deploy:
@@ -237,7 +227,7 @@ services:
     healthcheck:
       disable: true      
     # healthcheck:
-    #   test: curl -f https://{{ nginx_subdomain }}{{ nginx_domain }}/webmail
+    #   test: "curl -f -L -H 'User-Agent: health' http://localhost/"
     #   interval: 30s
     #   retries: 3
 
@@ -274,7 +264,7 @@ services:
       - "{{ mailu_volume_folder }}/dav:/data"
     networks:
       - {{ stack_network_name }}
-{% if ipv6_enabled %}
+{% if ipv6_enabled is defined and ipv6_enabled|bool==true %}
       - bridge
 {% endif %}      
     deploy:
@@ -292,7 +282,7 @@ services:
       - "{{ mailu_volume_folder }}/data:/data"
     networks:
       - {{ stack_network_name }}
-{% if ipv6_enabled %}
+{% if ipv6_enabled is defined and ipv6_enabled|bool==true %}
       - bridge
 {% endif %}      
     deploy:
