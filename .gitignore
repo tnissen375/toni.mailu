@@ -11,3 +11,5 @@
 # vaults
 vault*
 
+# lokale Dateien
+./local/*

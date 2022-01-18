@@ -22,7 +22,7 @@ services:
       - {{ stack_network_name }}
     deploy:
       restart_policy:
-        condition: on-failure
+        condition: any
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -114,13 +114,14 @@ services:
       - "{{ mailu_volume_folder }}/data:/data"
       - "{{ mailu_volume_folder }}/dkim:/dkim"
       - "./manage.py:/app/mailu/manage.py"
+      - "./configuration.py:/app/mailu/configuration.py"
+      - "./base.py:/app/mailu/sso/views/base.py"
     networks:
       - {{ stack_network_name }}
     deploy:
       restart_policy:
-        condition: on-failure
+        condition: any
       replicas: 1
-
 
   imap:
     image: mailu/dovecot:latest
@@ -143,10 +144,10 @@ services:
 {% endif %}
     deploy:
       restart_policy:
-        condition: on-failure
+        condition: any
       replicas: 1
     healthcheck:
-      disable: true       
+      disable: true
 #    healthcheck: { test: ["CMD-SHELL", "doveadm service status"], timeout: 5s, interval: 10s, retries: 3 }
 
   smtp:
@@ -171,11 +172,11 @@ services:
 {% endif %}      
     deploy:
       restart_policy:
-        condition: on-failure
+        condition: any
       replicas: 1
-    healthcheck:
-      disable: true        
-    #healthcheck: { test: ["CMD-SHELL", "echo QUIT|nc localhost 25 | grep '220 .* ESMTP Postfix'"], timeout: 3s, interval: 10s, retries: 5 }
+    # healthcheck:
+    #   disable: true
+    # #healthcheck: { test: ["CMD-SHELL", "echo QUIT|nc localhost 25 | grep '220 .* ESMTP Postfix'"], timeout: 3s, interval: 10s, retries: 5 }
 
   antispam:
     image: mailu/rspamd:{{ mailu_version }}
@@ -192,7 +193,7 @@ services:
       - {{ stack_network_name }}
     deploy:
       restart_policy:
-        condition: on-failure
+        condition: any
       replicas: 1
 #    healthcheck: { test: ["CMD-SHELL", "/usr/bin/rspamadm control stat"], timeout: 3s, interval: 10s, retries: 5 } 
     healthcheck: { test: ["CMD-SHELL", "curl -f -L http://localhost:11334/ || exit 1"], timeout: 30s, interval: 10s, retries: 5 }
@@ -205,8 +206,10 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/filter:/data"
     networks:
-      - {{ stack_network_name }}      
+      - {{ stack_network_name }}
     deploy:
+      restart_policy:
+        condition: any
       replicas: 1
     healthcheck: { test: ["CMD", "pgrep", "-x", "clamd"], timeout: 3s, interval: 10s, retries: 5 }
 
@@ -218,18 +221,17 @@ services:
       - "{{ mailu_volume_folder }}/webmail:/data"
       - "{{ mailu_volume_folder }}/roundcube:/overrides:ro"
     networks:
-      - {{ stack_network_name }}      
+      - {{ stack_network_name }}
     deploy:
       restart_policy:
         condition: on-failure
-    deploy:
       replicas: 1
-    healthcheck:
-      disable: true      
     # healthcheck:
-    #   test: "curl -f -L -H 'User-Agent: health' http://localhost/"
-    #   interval: 30s
-    #   retries: 3
+    #   disable: true      
+    healthcheck:
+      test: "curl -f -L -H 'User-Agent: health' http://localhost/"
+      interval: 30s
+      retries: 3
 
 {% if mailu_webmail_type is defined and mailu_webmail_type=="roundcube" %}
   {{ roundcube_db_host }}:
@@ -268,6 +270,8 @@ services:
       - bridge
 {% endif %}      
     deploy:
+      restart_policy:
+        condition: on-failure
       replicas: 1
     healthcheck:
       test: curl -f http://127.0.0.1:5232
@@ -286,6 +290,8 @@ services:
       - bridge
 {% endif %}      
     deploy:
+      restart_policy:
+        condition: on-failure
       replicas: 1
     healthcheck:
       disable: true

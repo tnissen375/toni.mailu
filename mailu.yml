@@ -14,7 +14,7 @@
         dns_create: false,
         dns_update: false,
         rdns_cloud: false,
-        auth_provider_domain: 'key.{{ domain }}.com',
+        auth_provider_domain: 'key.{{ domain }}',
         keycloak_redirect: "https://{{ domain }}/",
         auth_bypass: "false",
         include_auth: false,

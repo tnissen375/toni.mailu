@@ -16,6 +16,9 @@ hotbackup: bckup bckupdbmailu bckupdbroundcube rm purge deploy
 initadmin:
 	docker exec $(FRONT) /bin/sh -c "./config.py && nginx -s reload"
 
+restartstucked:
+	docker ps -q -f "name={{ deploy_name }}" -f "health=starting" | xargs docker stop
+
 rm:
 	docker stack rm {{ deploy_name }}
 
@@ -23,10 +26,10 @@ rm:
 #	docker stack rm {{ deploy_name }}
 
 cp:
-	docker cp $(ADMIN):/app/mailu/manage.py {{ user_path }}/mailu
+	docker cp $(ADMIN):/app/mailu/manage.py {{ user_path }}/mailu && docker cp $(ADMIN):/app/mailu/configuration.py {{ user_path }}/mailu && docker cp $(ADMIN):/app/mailu/sso/views/base.py {{ user_path }}/mailu
 
 deploy:
-	docker stack deploy -c docker-compose.yml {{ deploy_name }} && docker exec -it $(NGINX) sh -c 'nginx -s reload' && sleep 60s && make initadmin
+	docker stack deploy -c docker-compose.yml {{ deploy_name }} && docker exec -it $(NGINX) sh -c 'nginx -s reload'
 
 createadmin:
 	docker exec $(ADMIN) flask {{ deploy_name }} admin admin {{ nginx_domain }} {{ mailu_admin_pw }}
