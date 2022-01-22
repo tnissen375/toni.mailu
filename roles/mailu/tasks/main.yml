@@ -496,6 +496,16 @@
 #     chdir: "{{ user_path }}/{{ deploy_name }}"
 #   register: mk_curl
 
+- name: create backup daily backup by cron file under /etc/cron.d
+  when: enable_backup | bool==true
+  cron:
+    name: Create backup
+    weekday: "0"
+    minute: "0"
+    hour: "4"
+    user: root
+    job: "make -C {{ user_path }}/{{ deploy_name }} hotbackup"
+
 - name: debug
   debug:
     msg: 'Status(200) = {{ result.status }}'
