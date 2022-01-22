@@ -5,8 +5,8 @@ NGINX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ nginx_st
 ADMIN := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_admin\.*")
 POSTFIX := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_smtp\.*")
 FRONT := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_front\.*")
-DB := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}db_mailu\.*")
-DBROUNDCUBE := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}db_roundcube\.*")
+DB := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_db_mailu\.*")
+DBROUNDCUBE := $$(docker ps -a | grep "Up" | awk '{print $$NF}' | grep -w "{{ deploy_name }}_db_roundcube\.*")
 target := /
 
 #completebackup: bckup stopapp bckupdbmailu bckupdbroundcube purge deploy
