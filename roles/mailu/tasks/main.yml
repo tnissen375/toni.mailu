@@ -229,6 +229,7 @@
     path: "{{ user_path }}/{{ deploy_name }}/base.py"
     insertbefore: '^\s*@sso.route'
     block: |
+        @sso.route('/login', methods=['GET'])
         def proxy():
             client_ip = flask.request.headers.get('X-Real-IP', flask.request.remote_addr)
             username=flask.request.headers.get('X-Auth-Email') or ""
