@@ -89,20 +89,26 @@
   when: create_stack_network|default(false)
 
 - name: Deploy vhost
-  template:
-    src: nginx.conf.j2
-    dest: "{{ nginx_conf_dir }}/conf.d/{{ nginx_subdomain }}{{ nginx_domain }}.conf"
-  when: nginx_conf_file.stat.exists
-  
+  include_role:
+    name: toni.openresty
+    tasks_from: vhost
+#  vars:  
+#    access_group: ""
+
 - name: Copy snippets
   include_role:
     name: toni.openresty
     tasks_from: snippets
   vars:  
     keycloak_access_group: "{{ access_group }}"
-    openresty_secret: "{{ mailu_resty_secret }}"
     nginx_snippets:
       - { srcname: "auth.conf.j2", destname: "{{ access_group }}_auth.conf" }
+    nginx_auth_headers:
+      - 'ngx.req.set_header("X-Auth-Audience", res.id_token.aud)'
+      - 'ngx.req.set_header("X-Auth-Email", res.id_token.email)'
+      - 'ngx.req.set_header("X-Auth-Locale", res.id_token.locale)'
+      - 'ngx.req.set_header("X-Auth-Proxy-Secret", "{{ mailu_resty_secret }}")'
+      - 'ngx.req.set_header("X-Auth-Proxy-Target", "Admin")'
 
 - name: Configure nginx logs
   when: nginx_conf_file.stat.exists
@@ -137,10 +143,10 @@
 # .conf!!!
 - name: Deploy vhost
   when: not existing_certs|bool and certbot_cert_exists|bool
-  template:
-    src: nginx.conf.j2
-    dest: "{{ nginx_conf_dir }}/conf.d/{{ nginx_subdomain }}{{ nginx_domain }}.conf"
-  
+  include_role:
+    name: toni.openresty
+    tasks_from: vhost
+
 - name: remove {{ deploy_name }} stack
   docker_stack:
     state: absent
@@ -229,7 +235,7 @@
     path: "{{ user_path }}/{{ deploy_name }}/base.py"
     insertbefore: '^\s*@sso.route'
     block: |
-        @sso.route('/login', methods=['GET'])
+        @sso.route('/proxy', methods=['GET'])
         def proxy():
             client_ip = flask.request.headers.get('X-Real-IP', flask.request.remote_addr)
             username=flask.request.headers.get('X-Auth-Email') or ""
