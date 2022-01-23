@@ -1,0 +1,86 @@
+---
+- name: ensure fail2ban postfix filter
+  copy:
+    content: |
+      # Fail2Ban configuration file
+      [Definition]
+      failregex = .* client login failed: .+ client:\ <HOST>
+      ignoreregex =
+      journalmatch = CONTAINER_TAG=mailu-front
+    mode: 0644
+    dest:  /etc/fail2ban/filter.d/mailu-bad-auth.conf
+  notify: restart fail2ban
+
+- name: ensure fail2ban postfix
+  copy:
+    content: |
+      [mailu-bad-auth]
+      enabled = true
+      backend = systemd
+      filter = mailu-bad-auth
+      bantime = 604800
+      findtime = 300
+      maxretry = 10
+      action = mailu-docker-action
+    mode: 0644
+    dest:  /etc/fail2ban/jail.d/mailu-bad-auth.conf
+  notify: restart fail2ban
+
+
+- name: ensure fail2ban admin filter
+  copy:
+    content: |
+      # Fail2Ban configuration file
+      [Definition]
+      failregex = .* Login failed for .+ from <HOST>.
+      ignoreregex =
+      journalmatch = CONTAINER_TAG=mailu-admin
+    mode: 0644
+    dest:  /etc/fail2ban/jail.d/mailu-bad-auth-sso.conf
+  notify: restart fail2ban
+
+- name: ensure fail2ban admin
+  copy:
+    content: |
+      [mailu-bad-auth-sso]
+      enabled = true
+      backend = systemd
+      filter = mailu-bad-auth-sso
+      bantime = 604800
+      findtime = 300
+      maxretry = 10
+      action = mailu-docker-action
+    mode: 0644
+    dest:  /etc/fail2ban/jail.d/mailu-bad-auth-sso.conf
+  notify: restart fail2ban
+
+  #The above will block flagged IPs for a week, you can of course change it to you needs.
+  #https://mailu.io/master/faq.html
+
+- name: ensure DOCKER-USER chain
+  copy:
+    content: |
+      [Definition]
+
+      actionstart = iptables -N f2b-mailu-bad-auth
+                    iptables -A f2b-mailu-bad-auth -j RETURN
+                    iptables -I DOCKER-USER -p tcp -m multiport --dports 1:1024 -j f2b-mailu-bad-auth
+
+      actionstop = iptables -D DOCKER-USER -p tcp -m multiport --dports 1:1024 -j f2b-mailu-bad-auth
+                   iptables -F f2b-mailu-bad-auth
+                   iptables -X f2b-mailu-bad-auth
+
+      actioncheck = iptables -n -L DOCKER-USER | grep -q 'f2b-mailu-bad-auth[ \t]'
+      actionban = iptables -I f2b-mailu-bad-auth 1 -s <ip> -j DROP
+      actionunban = iptables -D f2b-mailu-bad-auth -s <ip> -j DROP
+    mode: 0644
+    dest:  /etc/fail2ban/action.d/mailu-docker-action.conf
+  notify: restart fail2ban
+
+- name: ensure fail2ban starts after docker
+  copy:
+    content: |
+      [Unit]
+      After=docker.service
+    mode: 0644
+    dest:  /etc/systemd/system/fail2ban.service.d/override.conf

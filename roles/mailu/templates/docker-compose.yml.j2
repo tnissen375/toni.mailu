@@ -66,10 +66,17 @@ services:
 {% else %}
       - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/fullchain.pem:/certs/cert.pem" 
       - "/etc/letsencrypt/live/{{ nginx_subdomain }}{{ nginx_domain }}/privkey.pem:/certs/key.pem"
-{% endif %}   
+{% endif %}
       - "{{ mailu_volume_folder }}/overrides/nginx:/overrides:ro"
+{% if enable_fail2ban is defined and enable_fail2ban|bool==true %}
     logging:
-      driver: json-file      
+      driver: journald
+      options:
+        tag: mailu-front
+{% else %}
+    logging:
+      driver: json-file
+{% endif %}
     ports:
       - "80"
       - "443"
@@ -109,6 +116,15 @@ services:
   admin:
     image: mailu/admin:{{ mailu_version }}
     env_file: "{{ mailu_volume_folder}}/mailu.env"
+{% if enable_fail2ban is defined and enable_fail2ban|bool==true %}
+    logging:
+      driver: journald
+      options:
+        tag: mailu-admin
+{% else %}
+    logging:
+      driver: json-file
+{% endif %}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - "{{ mailu_volume_folder }}/data:/data"

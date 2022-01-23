@@ -15,6 +15,7 @@ ssl_certs_path: /etc/nginx/ssl/certs
 ssl_private_path: /etc/nginx/ssl/private
 access_group: corteza
 configure_firewall: true
+configure_fail2ban: true
 virtual_corteza: true
 corteza_domain: "corteza.{{ domain }}.de"
 virtual_corteza_ipv6: "{{ ipv6_enabled }}"
