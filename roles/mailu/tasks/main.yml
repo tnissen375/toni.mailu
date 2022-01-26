@@ -15,8 +15,12 @@
   ignore_errors: true
 
 - set_fact:
-     virtual_corteza_sink: "{{ sink_slurp.content }}"
+     virtual_corteza_sink: "{{ sink_slurp.content | b64decode }}"
   when: sink_slurp.failed == false and virtual_corteza_sinkfile_path != ""
+
+# - name: debug
+#   debug:
+#     msg: '{{ virtual_corteza_sink | b64decode}}'
 
 - name: Register nginx.conf file
   stat:
@@ -501,17 +505,16 @@
     timeout: 20
   delegate_to: localhost
 
-# - name: Install curl in postfix container
-#   command: make installcurl
-#   args:
-#     chdir: "{{ user_path }}/{{ deploy_name }}"
-#   register: mk_curl
+- name: Install curl in postfix container
+  command: make installcurl
+  args:
+    chdir: "{{ user_path }}/{{ deploy_name }}"
+  register: mk_curl
 
 - name: create backup daily backup by cron file under /etc/cron.d
   when: enable_backup | bool==true
   cron:
-    name: Create backup
-    weekday: "0"
+    name: Create {{ deploy_name }} backup
     minute: "0"
     hour: "4"
     user: root

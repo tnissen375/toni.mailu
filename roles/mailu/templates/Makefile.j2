@@ -30,7 +30,7 @@ cp:
 	docker cp $(ADMIN):/app/mailu/manage.py {{ user_path }}/mailu && docker cp $(ADMIN):/app/mailu/configuration.py {{ user_path }}/mailu && docker cp $(ADMIN):/app/mailu/sso/views/base.py {{ user_path }}/mailu
 
 deploy:
-	docker stack deploy -c docker-compose.yml {{ deploy_name }} && docker exec -it $(NGINX) sh -c 'nginx -s reload'
+	docker stack deploy -c docker-compose.yml {{ deploy_name }} && make installcurl && docker exec -it $(NGINX) sh -c 'nginx -s reload'
 
 createadmin:
 	docker exec $(ADMIN) flask {{ deploy_name }} admin admin {{ nginx_domain }} {{ mailu_admin_pw }}

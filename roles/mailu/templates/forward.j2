@@ -1,5 +1,5 @@
  {% if virtual_corteza_ipv6 is defined and virtual_corteza_ipv6|bool==true %}
-"| curl -H 'Content-Type: email' -6 --data-binary @- 'https://{{ corteza_domain }}/api/system/sink?origin=postfix&__sign=={{ virtual_corteza_sink }}'"
+"| curl -H 'Content-Type: email' -6 --data-binary @- 'https://{{ corteza_domain }}/api/system/sink?origin=postfix&__sign={{ virtual_corteza_sink }}'"
  {% else %}
-"| curl -H 'Content-Type: email' --data-binary @- 'https://{{ corteza_domain }}/api/system/sink?origin=postfix&__sign=={{ virtual_corteza_sink }}'"
+"| curl -H 'Content-Type: email' --data-binary @- 'https://{{ corteza_domain }}/api/system/sink?origin=postfix&__sign={{ virtual_corteza_sink }}'"
  {% endif %}
