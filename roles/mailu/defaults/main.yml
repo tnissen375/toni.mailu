@@ -5,6 +5,7 @@ update_stack: false
 user_path: "/root"
 deploy_name: "mailu"
 enable_backup: true
+enable_fail2ban: true
 nginx_subdomain: "mail."
 nginx_stack: "openresty"
 nginx_domain: "{{ domain }}"
